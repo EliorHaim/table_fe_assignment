@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 
-const useFetchData = (rowsPerPage = 5) => {
+const useFetchData = (rowsPerPage = 5, fetchFn = fetch) => {
     const [data, setData] = useState([]);
     const [columns, setColumns] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
-    const [sortConfig, setSortConfig] = useState(null);
     const [filters, setFilters] = useState({});
+    const [sortConfig, setSortConfig] = useState(null);
 
     const fetchData = async (page = 0, filters = {}, sortConfig = {}) => {
         try {
@@ -26,45 +26,48 @@ const useFetchData = (rowsPerPage = 5) => {
                 url += `&_sort=${sortConfig.columnId}&_order=${sortConfig.direction}`;
             }
 
-            const response = await fetch(url);
+            const response = await fetchFn(url);
             const result = await response.json();
-            const totalRecords = response.headers.get('X-Total-Count');
+            const totalRecords = response.headers.get('X-Total-Count') || 0;
 
+            // Generate columns dynamically from response data
             if (result.length > 0) {
-                const dynamicColumns = Object.keys(result[0]).map((key) => ({
+                const keys = Object.keys(result[0]);
+                const generatedColumns = keys.map((key) => ({
                     id: key,
                     label: key.charAt(0).toUpperCase() + key.slice(1),
                     sortable: true,
                 }));
-                setColumns(dynamicColumns);
+                setColumns(generatedColumns);
             }
 
             setData(result);
             setTotalCount(Number(totalRecords));
         } catch (error) {
             console.error('Error fetching data:', error);
+            setData([]);
         }
-    };
-
-    const handleSort = (columnId) => {
-        const direction = sortConfig?.direction === 'asc' ? 'desc' : 'asc';
-        setSortConfig({ columnId, direction });
-    };
-
-    const handleFilterChange = (filter) => {
-        setFilters((prevFilters) => ({
-            ...prevFilters,
-            [filter.id]: filter.value,
-        }));
-    };
-
-    const handlePageChange = (page) => {
-        setCurrentPage(page);
     };
 
     useEffect(() => {
         fetchData(currentPage, filters, sortConfig);
     }, [currentPage, filters, sortConfig]);
+
+    const handleFilterChange = (filter) => {
+        setFilters((prev) => ({ ...prev, [filter.id]: filter.value }));
+    };
+
+    const handleSort = (columnId) => {
+        const direction =
+            sortConfig?.columnId === columnId && sortConfig.direction === 'asc'
+                ? 'desc'
+                : 'asc';
+        setSortConfig({ columnId, direction });
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
 
     return {
         data,
@@ -80,3 +83,4 @@ const useFetchData = (rowsPerPage = 5) => {
 };
 
 export default useFetchData;
+//testing
